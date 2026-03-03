@@ -18,6 +18,7 @@ subject to {
   
 // comented because Denmark and Germany have the same color
 //  Denmark != Germany;	
+  Denmark == Germany; 
   
   France != Luxembourg;
   France != Germany;
@@ -36,12 +37,14 @@ subject to {
   writeln("Germany:	", Names[Germany]);
   writeln("Luxembourg:	", Names[Luxembourg]);
   writeln("Netherlands:	", Names[Netherlands]);
+  writeln("Switzerland:	", Names[Switzerland]);
    }
    
-// a solution
-//Belgium:	    yellow
-//Denmark:	    blue
-//France:	    green
-//Germany:	    blue
-//Luxembourg:	red
-//Netherlands:	green
+// solution
+//Belgium:	green
+//Denmark:	yellow
+//France:	blue
+//Germany:	yellow
+//Luxembourg:	white
+//Netherlands:	blue
+//Switzerland:	green
