@@ -12,12 +12,6 @@ def _normalise_rows(x: np.ndarray, eps: float = 1e-8) -> np.ndarray:
 
 
 def _normalised_adjacency(G: nx.Graph, nodes: list) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Returns (A, A_hat) where:
-      A     = raw adjacency matrix (float64, indexed by *nodes*)
-      A_hat = D̃^{-1/2} Ã D̃^{-1/2}  with  Ã = A + I  (Kipf & Welling 2017)
-    nx.to_numpy_array replaces the manual edge-loop adjacency builder.
-    """
     A = nx.to_numpy_array(G, nodelist=nodes, dtype=np.float64)
     A_tilde = A + np.eye(len(nodes))
     d_inv_sqrt = np.where(A_tilde.sum(1) > 0, A_tilde.sum(1) ** -0.5, 0.0)
@@ -27,13 +21,7 @@ def _normalised_adjacency(G: nx.Graph, nodes: list) -> tuple[np.ndarray, np.ndar
 
 
 def _initial_features(G: nx.Graph, nodes: list) -> np.ndarray:
-    """
-    8-dimensional hand-crafted node features, all via networkx bulk calls:
-      0 – degree (normalised)        4 – triangles (normalised)
-      1 – clustering coefficient     5 – core number (normalised)
-      2 – log-degree (normalised)    6 – eigenvector centrality
-      3 – degree² (normalised)       7 – betweenness centrality
-    """
+
     n = len(nodes)
     degrees   = dict(G.degree())
     max_deg   = max(degrees.values()) or 1
@@ -331,19 +319,7 @@ def gnn_coloring(G: nx.Graph,
                   ils_iter:   int = 500,
                   seed:       int = 42,
                   verbose:   bool = False):
-    """
-    GNN-based graph coloring (Kipf & Welling 2017 GCN backbone).
-
-    Steps
-    -----
-    1. Build 8-d node features from networkx centrality/structural metrics.
-    2. Compute normalised adjacency  Â = D̃^{-1/2} (A+I) D̃^{-1/2}.
-    3. Train a 2-layer GCN with a self-supervised coloring loss (vectorised).
-    4. Use node embeddings to guide a priority-ordered greedy assignment.
-    5. ILS post-processing to eliminate rare colours.
-
-    Returns  (k, coloring_dict).
-    """
+  
     if len(G) == 0:
         return 0, {}
 
