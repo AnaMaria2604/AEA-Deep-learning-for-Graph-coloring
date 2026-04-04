@@ -1,12 +1,15 @@
 import random
 import collections
 
-def tabucol(G, k, iterations=10000, tabu_size=7):
+def tabucol(G, k, iterations=50000, tabu_size=None):
     # Initial random coloring with k colors
     nodes = list(G.nodes())
     coloring = {node: random.randint(0, k-1) for node in nodes}
     
-    tabu_list = collections.deque(maxlen=tabu_size) # Tabu list: stores (node, color) to avoid immediate reversals
+    # Dynamic tabu tenure: Hertz & de Werra (1987) recommend ~0.6 * k
+    if tabu_size is None:
+        tabu_size = max(7, int(0.6 * k))
+    tabu_list = collections.deque(maxlen=tabu_size)  # stores (node, color) pairs
     
     for i in range(iterations):
         conflicts = [edge for edge in G.edges() if coloring[edge[0]] == coloring[edge[1]]]

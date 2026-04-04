@@ -3,34 +3,36 @@ import time
 import pandas as pd
 import os
 import argparse
-from greedy import greedy_sdl_coloring
+from gnn import gnn_coloring
 from tabucol import tabucol
 import numpy as np
 
+# common ones: myciel6, queen7_7, miles500, flat300_28_0
 VERIFIED_RESULTS = {
-    "queen5_5": "5",
-    "queen6_6": "7",
-   # "le450_25c": "25",
-    "david": "11",
-    "anna": "11",
-    "jean": "10",
-    "games120": "9",
-    "homer": "13",
-    "huck": "11",
-    "miles250": "8",
-    "miles500": "20",
-    "miles750": "31",
-    "miles1000": "42",
-    "miles1500": "73",
-    "myciel3" : "4",
-    "myciel4" : "5",
-    "myciel5" : "6",
-    "myciel6" : "7",
-    "myciel7" : "8",
-    # "dsjc250.5": "28",
-    # "flat300_28_0": "28",
-    # "dsjc500.9": "126",
-    # "dsjc1000.5": "85",
+    "queen5_5": "5",  # 1
+    "queen6_6": "7",    # 2
+    "queen7_7": "7",    # 3
+   "le450_25c": "25",  # 4
+    "david": "11",    # 5
+    "anna": "11",     # 6
+    "jean": "10",     # 7
+    "games120": "9",  # 8
+    "homer": "13",    # 9
+    "huck": "11",     # 10
+    "miles250": "8",  # 11
+    "miles500": "20", # 12
+    "miles750": "31", # 13
+    "miles1000": "42",# 14
+    "miles1500": "73",# 15
+    "myciel3" : "4", # 16
+    "myciel4" : "5", # 17
+    "myciel5" : "6", # 18
+    "myciel6" : "7", # 19
+    "myciel7" : "8", # 20
+    "dsjc250.5": "28", # 21
+    "flat300_28_0": "28", # 22
+    "dsjc500.9": "126", # 23
+    "dsjc1000.5": "85", # 24
 }
 
 def read_col_file(filepath):
@@ -58,80 +60,148 @@ def read_col_file(filepath):
 
 def run_benchmark(instance_name, G, nr_runs=15):
     print(f"\n--- Testing Instance: {instance_name} ---")
-    
-    # 1. Greedy (Baseline)
-    start = time.time()
-    k_greedy, _ = greedy_sdl_coloring(G)
-    end = time.time()
-    t_greedy = end - start
-    print(f"Greedy found {k_greedy} colors!")
-    
-    # 2. Tabucol (Attempt to find the best k)
-    #best_k_tabu = k_greedy
-    best_k_tabu = np.full(nr_runs, k_greedy)
-    #t_tabu_total = 0
-    t_tabu_total = np.zeros(nr_runs)
+
     target_chi_str = VERIFIED_RESULTS.get(instance_name, "?")
     try:
         target_chi = int(target_chi_str.split('/')[0]) if target_chi_str != "?" else 0
     except Exception:
         target_chi = 0
-    
-    # If the graph has no edges or very few, k_greedy could be 1
-    for i in range(nr_runs):
-        if k_greedy > 1:
-            for k in range(k_greedy - 1, 1, -1):
-                start = time.time()
-                success, _ = tabucol(G, k, iterations=10000)
-                end = time.time()
-                #t_tabu_total += (end - start)
-                t_tabu_total[i] += (end - start)
 
-                if success:
-                    #best_k_tabu = k
+    # ------------------------------------------------------------------
+    # 1. GNN coloring
+    # ------------------------------------------------------------------
+    best_k_gnn   = np.zeros(nr_runs, dtype=int)
+    t_gnn_total  = np.zeros(nr_runs)
+
+    for i in range(nr_runs):
+        start = time.time()
+        k_gnn_i, _ = gnn_coloring(G, seed=i)
+        t_gnn_total[i] = time.time() - start
+        best_k_gnn[i] = k_gnn_i
+        print(f"  GNN run {i+1:2d}: {k_gnn_i} colors  ({t_gnn_total[i]:.2f}s)")
+
+    mean_k_gnn   = np.mean(best_k_gnn)
+    min_k_gnn    = int(np.min(best_k_gnn))
+    max_k_gnn    = int(np.max(best_k_gnn))
+    std_k_gnn    = np.std(best_k_gnn)
+    mean_t_gnn   = np.mean(t_gnn_total)
+    print(f"GNN summary: mean={mean_k_gnn:.2f}  min={min_k_gnn}  max={max_k_gnn}  "
+          f"stdev={std_k_gnn:.2f}  avg_time={mean_t_gnn:.2f}s")
+
+    # ------------------------------------------------------------------
+    # 2. Tabucol (independent starting k using networkx's largest-first greedy)
+    # ------------------------------------------------------------------
+    nx_coloring   = nx.greedy_color(G, strategy="largest_first")
+    k_tabu_init   = len(set(nx_coloring.values()))
+    print(f"  Tabucol starting upper bound (nx greedy): {k_tabu_init} colors")
+
+    best_k_tabu  = np.full(nr_runs, k_tabu_init, dtype=float)
+    t_tabu_total = np.zeros(nr_runs)
+
+    TABU_RESTARTS = 3          # independent restarts per k before declaring infeasible
+    TABU_ITERS    = 50000      # iterations per single tabucol call
+
+    for i in range(nr_runs):
+        if k_tabu_init > 1:
+            for k in range(k_tabu_init - 1, 1, -1):
+                # Try TABU_RESTARTS independent random starts at this k
+                found = False
+                t_start = time.time()
+                for _ in range(TABU_RESTARTS):
+                    success, _ = tabucol(G, k, iterations=TABU_ITERS)
+                    if success:
+                        found = True
+                        break
+                t_tabu_total[i] += time.time() - t_start
+
+                if found:
                     best_k_tabu[i] = k
-                    print(f"Tabucol found {k} colors!")
-                    if target_chi > 0 and k <= target_chi: # Stop if we hit the known optimal
+                    print(f"  Tabucol run {i+1}: found {k} colors!")
+                    if target_chi > 0 and k <= target_chi:
                         break
                 else:
-                    print(f"Tabucol failed at {k} colors.")
+                    print(f"  Tabucol run {i+1}: failed at {k} colors "
+                          f"(after {TABU_RESTARTS} restarts).")
                     break
 
-    mean_time_tabu = np.mean(t_tabu_total)
-    mean_tabu = np.mean(best_k_tabu)
-    min_tabu = np.min(best_k_tabu)
-    max_tabu = np.max(best_k_tabu)
-    st_dev_tabu = np.std(best_k_tabu)
 
+    mean_time_tabu = np.mean(t_tabu_total)
+    mean_tabu      = np.mean(best_k_tabu)
+    min_tabu       = int(np.min(best_k_tabu))
+    max_tabu       = int(np.max(best_k_tabu))
+    st_dev_tabu    = np.std(best_k_tabu)
 
     return {
-        "Instance": instance_name,
-        "Nodes": G.number_of_nodes(),
-        "Edges": G.number_of_edges(),
-        "Greedy k": k_greedy,
-        "Greedy Time (s)": f"{t_greedy:.4f}",
-        "Tabucol (mean)": f"{mean_tabu:.2f}",
-        "Tabucol (min)": min_tabu,
-        "Tabucol (max)": max_tabu,
-        "Tabucol (stdev)": f"{st_dev_tabu:.2f}",
+        "Instance":            instance_name,
+        "Nodes":               G.number_of_nodes(),
+        "Edges":               G.number_of_edges(),
+        
+        "GNN (mean)":          f"{mean_k_gnn:.2f}",
+        "GNN (min)":           min_k_gnn,
+        "GNN (max)":           max_k_gnn,
+        "GNN (stdev)":         f"{std_k_gnn:.2f}",
+        "GNN Time (mean s)":   f"{mean_t_gnn:.4f}",
+        
+        "Tabucol (mean)":      f"{mean_tabu:.2f}",
+        "Tabucol (min)":       min_tabu,
+        "Tabucol (max)":       max_tabu,
+        "Tabucol (stdev)":     f"{st_dev_tabu:.2f}",
         "Tabucol Time (mean s)": f"{mean_time_tabu:.4f}",
-        #"Tabucol k": best_k_tabu,
-        #"Tabucol Time (s)": f"{t_tabu_total:.4f}",
-        "Verified Best k": target_chi_str
+        
+        "Verified Best k":     target_chi_str,
     }
 
-def generate_markdown_table(df, output_path):
-    headers = df.columns.tolist()
-    header_row = "| " + " | ".join(headers) + " |"
-    sep_row = "| " + " | ".join(["---"] * len(headers)) + " |"
-    
+def generate_markdown_table(results, output_path):
+    """
+    Write a grouped markdown report.
+    `results` is a list of (category, record_dict) tuples.
+    Columns written: Instance | Nodes | Edges |
+                     GNN mean | GNN min | GNN max | GNN stdev | GNN Time (s) |
+                     Tabu mean | Tabu min | Tabu max | Tabu stdev | Tabu Time (s) |
+                     Best k
+    """
+    COLS = [
+        ("Instance",              "Instance"),
+        ("Nodes",                 "Nodes"),
+        ("Edges",                 "Edges"),
+        ("GNN (mean)",            "GNN mean k"),
+        ("GNN (min)",             "GNN min k"),
+        ("GNN (max)",             "GNN max k"),
+        ("GNN (stdev)",           "GNN stdev"),
+        ("GNN Time (mean s)",     "GNN time (s)"),
+        ("Tabucol (mean)",        "Tabu mean k"),
+        ("Tabucol (min)",         "Tabu min k"),
+        ("Tabucol (max)",         "Tabu max k"),
+        ("Tabucol (stdev)",       "Tabu stdev"),
+        ("Tabucol Time (mean s)", "Tabu time (s)"),
+        ("Verified Best k",       "Best k"),
+    ]
+    keys   = [c[0] for c in COLS]
+    labels = [c[1] for c in COLS]
+
+    header = "| " + " | ".join(labels) + " |"
+    sep    = "| " + " | ".join(["---:"] * 3 + ["---:"] * 10 + ["---:"]) + " |"
+
+    # group by category preserving insertion order
+    from collections import OrderedDict
+    groups = OrderedDict()
+    for cat, rec in results:
+        groups.setdefault(cat, []).append(rec)
+
     with open(output_path, "w") as f:
         f.write("# Graph Coloring Benchmark Results\n\n")
-        f.write(header_row + "\n")
-        f.write(sep_row + "\n")
-        for _, row in df.iterrows():
-            row_str = "| " + " | ".join(str(x) for x in row.values) + " |"
-            f.write(row_str + "\n")
+        f.write("> **GNN** — 2-layer GCN (numpy, self-supervised coloring loss )  \n")
+        f.write("> **Tabu** — TabuCol local search, independent upper bound from nx largest-first greedy  \n")
+        f.write("> All values averaged over 15 independent runs.\n\n")
+
+        for cat, records in groups.items():
+            f.write(f"## {cat.capitalize()}\n\n")
+            f.write(header + "\n")
+            f.write(sep + "\n")
+            for rec in records:
+                row = "| " + " | ".join(str(rec.get(k, "-")) for k in keys) + " |"
+                f.write(row + "\n")
+            f.write("\n")
 
 def main():
     parser = argparse.ArgumentParser(description="Graph Coloring Benchmark")
@@ -153,48 +223,56 @@ def main():
         
     ordered_files = []
     categories = [
-        ("small", ["queen5_5", "myciel5", "le450_25c"]),
-        ("medium", ["david", "anna", "jean", "dsjc250.5", "flat300_28_0"]),
-        ("large", ["dsjc500.9", "dsjc1000.5"])
+        ("set1-myciel", [
+            "myciel3", "myciel4", "myciel5", "myciel6", "myciel7",
+        ]),
+        ("set2-queen", [
+            "queen5_5", "queen6_6", "queen7_7",
+        ]),
+        ("set3", [
+            "anna", "david", "jean", "huck", "homer", "games120",
+        ]),
+        ("set4-medium", [
+            "flat300_28_0", "dsjc250.5", "le450_25c",
+        ]),
+        ("set5-miles", [
+            "miles250", "miles500", "miles750", "miles1000", "miles1500",
+        ]),
+        ("set6-large", [
+            "dsjc500.9", "dsjc1000.5",
+        ]),
     ]
-    
-    visited = set()
+
     for cat_name, instances in categories:
         for inst in instances:
             filename = f"{inst}.col"
             if filename in col_files:
                 ordered_files.append((filename, cat_name))
-                visited.add(filename)
-                
-    for filename in sorted(col_files):
-        if filename not in visited:
-            ordered_files.append((filename, "other"))
-            
+
+
+    categorised_results = []   # list of (category, record_dict)
+
     for filename, category in ordered_files:
         filepath = os.path.join(args.instances_dir, filename)
         instance_name = os.path.splitext(filename)[0]
-        
+
         print(f"\n[{category.upper()}] Reading {filename}...")
         G = read_col_file(filepath)
         res = run_benchmark(instance_name, G)
-        res["Category"] = category
-        results.append(res)
-    
-    if results:
-        df = pd.DataFrame(results)
-        cols = df.columns.tolist()
-        if "Category" in cols:
-            cols.insert(0, cols.pop(cols.index("Category")))
-            df = df[cols]
-    else:
-        df = pd.DataFrame(results)
-        
+        categorised_results.append((category, res))
+
+    if not categorised_results:
+        print("No results to display.")
+        return
+
+    # ---- console table (pandas) ----------------------------------------
+    df = pd.DataFrame([r for _, r in categorised_results])
     print("\nFINAL COMPARISON TABLE")
     print(df.to_string(index=False))
-    
-    # Generate Markdown Table
+
+    # ---- markdown report -----------------------------------------------
     try:
-        generate_markdown_table(df, args.output)
+        generate_markdown_table(categorised_results, args.output)
         print(f"\nResults successfully written to {args.output}")
     except Exception as e:
         print(f"Could not write markdown table to {args.output}: {e}")

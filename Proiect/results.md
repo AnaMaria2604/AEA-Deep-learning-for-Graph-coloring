@@ -1,22 +1,16 @@
 # Graph Coloring Benchmark Results
 
-| Category | Instance | Nodes | Edges | Greedy k | Greedy Time (s) | Tabucol (mean) | Tabucol (min) | Tabucol (max) | Tabucol (stdev) | Tabucol Time (mean s) | Verified Best k |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| small | queen5_5 | 25 | 160 | 9 | 0.0000 | 5.07 | 5 | 6 | 0.25 | 0.1420 | 5 |
-| small | myciel5 | 47 | 236 | 7 | 0.0000 | 6.00 | 6 | 6 | 0.00 | 0.0018 | 6 |
-| medium | david | 87 | 406 | 14 | 0.0000 | 11.00 | 11 | 11 | 0.00 | 0.0259 | 11 |
-| medium | anna | 138 | 493 | 13 | 0.0000 | 11.00 | 11 | 11 | 0.00 | 0.0562 | 11 |
-| medium | jean | 80 | 254 | 12 | 0.0000 | 10.00 | 10 | 10 | 0.00 | 0.0062 | 10 |
-| other | games120 | 120 | 638 | 9 | 0.0000 | 9.00 | 9 | 9 | 0.00 | 1.1225 | 9 |
-| other | homer | 561 | 1629 | 18 | 0.0011 | 18.00 | 18 | 18 | 0.00 | 3.4728 | 13 |
-| other | huck | 74 | 301 | 12 | 0.0000 | 11.00 | 11 | 11 | 0.00 | 0.0025 | 11 |
-| other | miles1000 | 128 | 3216 | 54 | 0.0000 | 45.33 | 43 | 49 | 1.62 | 11.3254 | 42 |
-| other | miles1500 | 128 | 5198 | 81 | 0.0010 | 76.20 | 74 | 79 | 1.22 | 11.2735 | 73 |
-| other | miles250 | 128 | 387 | 10 | 0.0000 | 8.00 | 8 | 8 | 0.00 | 0.0156 | 8 |
-| other | miles500 | 128 | 1170 | 25 | 0.0000 | 20.27 | 20 | 22 | 0.57 | 0.6698 | 20 |
-| other | miles750 | 128 | 2113 | 38 | 0.0010 | 33.33 | 32 | 35 | 0.94 | 3.9897 | 31 |
-| other | myciel3 | 11 | 20 | 4 | 0.0010 | 4.00 | 4 | 4 | 0.00 | 0.0555 | 4 |
-| other | myciel4 | 23 | 71 | 5 | 0.0000 | 5.00 | 5 | 5 | 0.00 | 0.1506 | 5 |
-| other | myciel6 | 95 | 755 | 8 | 0.0000 | 7.00 | 7 | 7 | 0.00 | 0.0152 | 7 |
-| other | myciel7 | 191 | 2360 | 9 | 0.0000 | 8.00 | 8 | 8 | 0.00 | 0.1054 | 8 |
-| other | queen6_6 | 36 | 290 | 10 | 0.0000 | 7.93 | 7 | 8 | 0.25 | 0.4733 | 7 |
+> **GNN** — 2-layer GCN (numpy, self-supervised coloring loss )  
+> **Tabu** — TabuCol local search, independent upper bound from nx largest-first greedy  
+> All values averaged over 15 independent runs.
+
+## Set1-myciel
+
+| Instance | Nodes | Edges | GNN mean k | GNN min k | GNN max k | GNN stdev | GNN time (s) | Tabu mean k | Tabu min k | Tabu max k | Tabu stdev | Tabu time (s) | Best k |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| myciel3 | 11 | 20 | 4.00 | 4 | 4 | 0.00 | 0.0155 | 4.00 | 4 | 4 | 0.00 | 0.9780 | 4 |
+| myciel4 | 23 | 71 | 5.00 | 5 | 5 | 0.00 | 0.0241 | 5.00 | 5 | 5 | 0.00 | 2.7716 | 5 |
+| myciel5 | 47 | 236 | 6.00 | 6 | 6 | 0.00 | 0.0525 | 6.00 | 6 | 6 | 0.00 | 7.4057 | 6 |
+| myciel6 | 95 | 755 | 7.00 | 7 | 7 | 0.00 | 0.1842 | 7.00 | 7 | 7 | 0.00 | 20.4277 | 7 |
+| myciel7 | 191 | 2360 | 8.07 | 8 | 9 | 0.25 | 0.5340 | 8.00 | 8 | 8 | 0.00 | 58.8443 | 8 |
+
