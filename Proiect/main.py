@@ -5,18 +5,32 @@ import os
 import argparse
 from greedy import greedy_sdl_coloring
 from tabucol import tabucol
+import numpy as np
 
 VERIFIED_RESULTS = {
     "queen5_5": "5",
-    "myciel5": "6",
-    "le450_25c": "25",
+    "queen6_6": "7",
+   # "le450_25c": "25",
     "david": "11",
     "anna": "11",
     "jean": "10",
-    "dsjc250.5": "28",
-    "flat300_28_0": "28",
-    "dsjc500.9": "126",
-    "dsjc1000.5": "85",
+    "games120": "9",
+    "homer": "13",
+    "huck": "11",
+    "miles250": "8",
+    "miles500": "20",
+    "miles750": "31",
+    "miles1000": "42",
+    "miles1500": "73",
+    "myciel3" : "4",
+    "myciel4" : "5",
+    "myciel5" : "6",
+    "myciel6" : "7",
+    "myciel7" : "8",
+    # "dsjc250.5": "28",
+    # "flat300_28_0": "28",
+    # "dsjc500.9": "126",
+    # "dsjc1000.5": "85",
 }
 
 def read_col_file(filepath):
@@ -42,7 +56,7 @@ def read_col_file(filepath):
                 G.add_edge(u, v)
     return G
 
-def run_benchmark(instance_name, G):
+def run_benchmark(instance_name, G, nr_runs=15):
     print(f"\n--- Testing Instance: {instance_name} ---")
     
     # 1. Greedy (Baseline)
@@ -53,8 +67,10 @@ def run_benchmark(instance_name, G):
     print(f"Greedy found {k_greedy} colors!")
     
     # 2. Tabucol (Attempt to find the best k)
-    best_k_tabu = k_greedy
-    t_tabu_total = 0
+    #best_k_tabu = k_greedy
+    best_k_tabu = np.full(nr_runs, k_greedy)
+    #t_tabu_total = 0
+    t_tabu_total = np.zeros(nr_runs)
     target_chi_str = VERIFIED_RESULTS.get(instance_name, "?")
     try:
         target_chi = int(target_chi_str.split('/')[0]) if target_chi_str != "?" else 0
@@ -62,30 +78,45 @@ def run_benchmark(instance_name, G):
         target_chi = 0
     
     # If the graph has no edges or very few, k_greedy could be 1
-    if k_greedy > 1:
-        for k in range(k_greedy - 1, 1, -1):
-            start = time.time()
-            success, _ = tabucol(G, k, iterations=10000)
-            end = time.time()
-            t_tabu_total += (end - start)
-            
-            if success:
-                best_k_tabu = k
-                print(f"Tabucol found {k} colors!")
-                if target_chi > 0 and k <= target_chi: # Stop if we hit the known optimal
+    for i in range(nr_runs):
+        if k_greedy > 1:
+            for k in range(k_greedy - 1, 1, -1):
+                start = time.time()
+                success, _ = tabucol(G, k, iterations=10000)
+                end = time.time()
+                #t_tabu_total += (end - start)
+                t_tabu_total[i] += (end - start)
+
+                if success:
+                    #best_k_tabu = k
+                    best_k_tabu[i] = k
+                    print(f"Tabucol found {k} colors!")
+                    if target_chi > 0 and k <= target_chi: # Stop if we hit the known optimal
+                        break
+                else:
+                    print(f"Tabucol failed at {k} colors.")
                     break
-            else:
-                print(f"Tabucol failed at {k} colors.")
-                break
-            
+
+    mean_time_tabu = np.mean(t_tabu_total)
+    mean_tabu = np.mean(best_k_tabu)
+    min_tabu = np.min(best_k_tabu)
+    max_tabu = np.max(best_k_tabu)
+    st_dev_tabu = np.std(best_k_tabu)
+
+
     return {
         "Instance": instance_name,
         "Nodes": G.number_of_nodes(),
         "Edges": G.number_of_edges(),
         "Greedy k": k_greedy,
         "Greedy Time (s)": f"{t_greedy:.4f}",
-        "Tabucol k": best_k_tabu,
-        "Tabucol Time (s)": f"{t_tabu_total:.4f}",
+        "Tabucol (mean)": f"{mean_tabu:.2f}",
+        "Tabucol (min)": min_tabu,
+        "Tabucol (max)": max_tabu,
+        "Tabucol (stdev)": f"{st_dev_tabu:.2f}",
+        "Tabucol Time (mean s)": f"{mean_time_tabu:.4f}",
+        #"Tabucol k": best_k_tabu,
+        #"Tabucol Time (s)": f"{t_tabu_total:.4f}",
         "Verified Best k": target_chi_str
     }
 
@@ -104,7 +135,7 @@ def generate_markdown_table(df, output_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Graph Coloring Benchmark")
-    parser.add_argument("--instances-dir", default="instances", help="Directory containing .col instances")
+    parser.add_argument("--instances-dir", default="inst", help="Directory containing .col instances")
     parser.add_argument("--output", default="results.md", help="Output markdown file for results table")
     args = parser.parse_args()
     
@@ -146,7 +177,7 @@ def main():
         print(f"\n[{category.upper()}] Reading {filename}...")
         G = read_col_file(filepath)
         res = run_benchmark(instance_name, G)
-        res["Category"] = category 
+        res["Category"] = category
         results.append(res)
     
     if results:
