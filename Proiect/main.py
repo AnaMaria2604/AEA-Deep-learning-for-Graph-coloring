@@ -7,7 +7,6 @@ from gnn import gnn_coloring
 from tabucol import tabucol
 import numpy as np
 
-# common ones: myciel6, queen7_7, miles500, flat300_28_0
 VERIFIED_RESULTS = {
     "queen5_5": "5",  # 1
     "queen6_6": "7",    # 2
@@ -265,12 +264,10 @@ def main():
         print("No results to display.")
         return
 
-    # ---- console table (pandas) ----------------------------------------
     df = pd.DataFrame([r for _, r in categorised_results])
     print("\nFINAL COMPARISON TABLE")
     print(df.to_string(index=False))
 
-    # ---- markdown report -----------------------------------------------
     try:
         generate_markdown_table(categorised_results, args.output)
         print(f"\nResults successfully written to {args.output}")

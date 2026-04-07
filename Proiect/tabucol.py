@@ -1,7 +1,7 @@
 import random
 import collections
 
-def tabucol(G, k, iterations=30000, tabu_size=None):
+def tabucol(G, k, iterations=50000, tabu_size=None):
     nodes = list(G.nodes())
     if not nodes:
         return True, {}

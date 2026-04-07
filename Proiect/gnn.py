@@ -3,24 +3,34 @@ import networkx as nx
 from collections import defaultdict
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 def _normalise_rows(x: np.ndarray, eps: float = 1e-8) -> np.ndarray:
+    """
+    Normalizes each row of a 2D matrix (so that each vector has length 1).
+    """
+    
     return x / (np.linalg.norm(x, axis=1, keepdims=True) + eps)
 
 
 def _normalised_adjacency(G: nx.Graph, nodes: list) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Builds the simple adjacency matrix (A) and its normalized variant (A_hat) 
+    """
+
     A = nx.to_numpy_array(G, nodelist=nodes, dtype=np.float64)
     A_tilde = A + np.eye(len(nodes))
     d_inv_sqrt = np.where(A_tilde.sum(1) > 0, A_tilde.sum(1) ** -0.5, 0.0)
+
     # outer product broadcast: D^{-1/2} @ A_tilde @ D^{-1/2}
     A_hat = d_inv_sqrt[:, None] * A_tilde * d_inv_sqrt[None, :]
     return A, A_hat
 
 
 def _initial_features(G: nx.Graph, nodes: list) -> np.ndarray:
+    """
+    Manually computes: degree, triangles, core number, clustering, eigenvector and betweenness centralities.
+
+    Where it is used: In `gnn_coloring` to define a starting matrix that acts as a pure input for the 1st layer of the GNN.
+    """
 
     n = len(nodes)
     degrees   = dict(G.degree())
@@ -59,18 +69,12 @@ def _initial_features(G: nx.Graph, nodes: list) -> np.ndarray:
     return X.astype(np.float64)   # (n, 8)
 
 
-# ---------------------------------------------------------------------------
-# 2-layer GCN (numpy-only, self-supervised coloring loss)
-# ---------------------------------------------------------------------------
-
 class GCNNumpy:
     """
-    Forward:  Z = ReLU( Â · ReLU( Â · X · W1 ) · W2 )
+    Implementation of a 2-layer Graph Convolutional Network (GCN), written purely using NumPy operations.
 
-    Training signal (self-supervised):
-      edges    → push embeddings apart  (hinge, want dist ≥ margin)
-      non-edges → pull embeddings closer (hinge, want dist ≤ margin/2)
-    Loss and gradients are fully vectorised over all edges at once.
+    The mechanism is self-supervised: it directly learns spatial coordinates by pushing adjacent nodes apart 
+        and pulling totally disparate nodes closer.
     """
 
     def __init__(self, in_dim: int, hidden_dim: int, out_dim: int, seed: int = 42):
@@ -81,15 +85,20 @@ class GCNNumpy:
         self.W2 = rng.uniform(-lim2, lim2, (hidden_dim, out_dim))
 
     def forward(self, A_hat: np.ndarray, X: np.ndarray):
+        """
+        Executes the "Forward Pass" through the GNN, evaluating mathematical formulas directly from matrices. 
+        """
+
         H1 = np.maximum(0.0, A_hat @ X  @ self.W1)   # (n, hidden_dim)
         Z  = np.maximum(0.0, A_hat @ H1 @ self.W2)   # (n, out_dim)
         return Z, H1
 
     def _loss_and_grads(self, A_hat, X, A, edges, n_neg=3, margin=1.0):
         """
-        Vectorised hinge loss over all edges + randomly sampled non-edges.
-        No Python loop over individual pairs.
+        Computes the vectorized Loss function (hinge loss) that pulls distant neighbors 
+            and the Gradients for Backpropagation aimed at modifying the GNN iteratively.
         """
+
         Z, H1 = self.forward(A_hat, X)
         n     = Z.shape[0]
         dL_dZ = np.zeros_like(Z)
@@ -104,6 +113,7 @@ class GCNNumpy:
             # want dist >= margin  →  penalise when dist < margin
             hinge = np.maximum(0.0, margin - dist)       # (E,)
             loss  += float(np.sum(hinge ** 2))
+
             # gradient w.r.t. Z[i] and Z[j] for active hinges
             scale = -2.0 * hinge / dist                  # (E,)  zero where hinge=0
             grad  = scale[:, None] * diff                # (E, d)
@@ -113,6 +123,7 @@ class GCNNumpy:
         # ---- negative pairs: sample n_neg * |E| random non-edges ----
         rng      = np.random.default_rng()
         n_target = len(edges) * n_neg
+
         # over-sample and filter
         cands    = rng.integers(0, n, size=(n_target * 5, 2))
         mask     = (cands[:, 0] != cands[:, 1]) & (A[cands[:, 0], cands[:, 1]] == 0)
@@ -122,11 +133,13 @@ class GCNNumpy:
             zj   = Z[neg[:, 1]]
             diff = zi - zj
             dist = np.linalg.norm(diff, axis=1) + 1e-8
+
             # want dist <= margin/2  →  penalise when dist > margin/2
             hinge = np.maximum(0.0, dist - margin / 2.0)
             loss  += 0.3 * float(np.sum(hinge ** 2))
             scale  = 0.3 * 2.0 * hinge / dist
             grad   = scale[:, None] * diff
+            
             np.add.at(dL_dZ, neg[:, 0],  grad)
             np.add.at(dL_dZ, neg[:, 1], -grad)
 
@@ -142,6 +155,12 @@ class GCNNumpy:
         return loss, dL_dW1, dL_dW2
 
     def train(self, A_hat, X, A, epochs=80, lr=0.01, margin=1.0, verbose=False):
+        """
+        Runs the training for the GCNNumpy object in a loop for the given epochs. 
+        
+        Decreases the Loss by calculating the optimal weights using Backpropagation.
+        """
+
         # Pre-extract upper-triangle edge indices once (reused every epoch)
         edge_idx = np.argwhere(A > 0)
         edge_idx = edge_idx[edge_idx[:, 0] < edge_idx[:, 1]]
@@ -171,22 +190,21 @@ class GCNNumpy:
         self.W1, self.W2 = best_W1, best_W2
 
 
-# ---------------------------------------------------------------------------
-# Embedding-guided coloring helpers
-# ---------------------------------------------------------------------------
-
 def _priority_scores(G: nx.Graph, nodes: list, Z: np.ndarray) -> np.ndarray:
     """
-    Returns a score per node (higher = colour first).
-    Vectorised: uses  A @ Z_norm  to get neighbour-similarity sums without loops.
-    score = 0.7 * normalised_degree + 0.3 * mean_neighbour_cosine_similarity
+    Computes a priority score based on the degree and difficulty of a node mixed with the localized semantic complexity of the centroids 
+        derived in the network, to establish that higher-scoring nodes need to be determined earlier.
+        
+    Where it is used: Only in the `_assign_colors` function, with the strict role of deciding the descending sorting order.
     """
     A       = nx.to_numpy_array(G, nodelist=nodes, dtype=np.float64)
-    deg_arr = A.sum(axis=1)                          # (n,)
-    Z_norm  = _normalise_rows(Z)                     # (n, d)
+    deg_arr = A.sum(axis=1)                          
+    Z_norm  = _normalise_rows(Z)                     
+    
     # (A @ Z_norm)[i] = sum of normalised embeddings of i's neighbours
     # dotted with Z_norm[i] gives total cosine similarity, /deg gives mean
-    nbr_sim_sum = A @ Z_norm                         # (n, d)
+    nbr_sim_sum = A @ Z_norm                         
+    
     # element-wise dot of each row with corresponding Z_norm row → (n,)
     nbr_sim     = (nbr_sim_sum * Z_norm).sum(axis=1)
     deg_norm    = deg_arr / (deg_arr.max() + 1)
@@ -197,25 +215,32 @@ def _priority_scores(G: nx.Graph, nodes: list, Z: np.ndarray) -> np.ndarray:
 
 def _best_color(z_i: np.ndarray, candidates: list, centroids: dict) -> int:
     """
-    Among *candidates*, return the colour whose centroid is farthest from z_i.
-    Uses numpy stacking for a single vectorised distance computation.
+    Taking a given vector `z_i`, matrix-checks the maximum euclidean distance towards the centroids of the 
+        different subsets of already established colors; geometrically chooses the farthest label. 
     """
+
     known = [c for c in candidates if c in centroids]
+
     if not known:
         return candidates[0]
-    C    = np.array([centroids[c] for c in known])  # (k, d)
-    dist = np.linalg.norm(z_i - C, axis=1)          # (k,)
+
+    C    = np.array([centroids[c] for c in known])  
+    dist = np.linalg.norm(z_i - C, axis=1)          
     return known[int(np.argmax(dist))]
 
 
 def _assign_colors(G: nx.Graph, nodes: list, Z: np.ndarray) -> dict:
-    """Priority-ordered greedy assignment with embedding-guided colour choice."""
+    """
+    Uses the fully trained GNN model and established priorities to ultimately allocate a valid integer representing 
+        the color, totally guided by the spatial position and the center of mass of the centroids generated by the network.        
+    """
+
     scores  = _priority_scores(G, nodes, Z)
-    ordered = [nodes[i] for i in np.argsort(-scores)]   # descending
+    ordered = [nodes[i] for i in np.argsort(-scores)]   
     idx     = {nd: i for i, nd in enumerate(nodes)}
 
     coloring: dict  = {}
-    centroids: dict = {}   # color → mean embedding
+    centroids: dict = {}   
     counts:    dict = {}
 
     for nd in ordered:
@@ -239,9 +264,10 @@ def _assign_colors(G: nx.Graph, nodes: list, Z: np.ndarray) -> dict:
 def _ils_improve(G: nx.Graph, coloring: dict, Z: np.ndarray,
                   idx: dict, max_iter: int = 2000) -> dict:
     """
-    Iteratively eliminate the rarest colour by reassigning its nodes to other
-    feasible colours, guided by embedding-centroid distance.
+    Modified Iterated Local Search - Locates the color with the rarest members and, by forcing successive valid moves based 
+        on distance from the embedding centroids, tries to distribute them to other families, completely dissolving that color from the graph.
     """
+
     coloring = dict(coloring)
     use      = defaultdict(int, {c: 0 for c in set(coloring.values())})
     for c in coloring.values():
@@ -294,8 +320,12 @@ def _ils_improve(G: nx.Graph, coloring: dict, Z: np.ndarray,
 
 
 def _safe_fix(G: nx.Graph, coloring: dict) -> dict:
-    """Repair any remaining conflicts with a simple sequential pass."""
+    """
+    Brute-force safety validation fail-safe. 
+    """
+
     coloring = dict(coloring)
+
     for nd in G.nodes():
         nbr_colors = {coloring[nb] for nb in G.neighbors(nd) if nb in coloring}
         if coloring.get(nd) in nbr_colors:
@@ -303,12 +333,9 @@ def _safe_fix(G: nx.Graph, coloring: dict) -> dict:
             while c in nbr_colors:
                 c += 1
             coloring[nd] = c
+
     return coloring
 
-
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
 
 def gnn_coloring(G: nx.Graph,
                   hidden_dim: int = 32,
@@ -319,6 +346,9 @@ def gnn_coloring(G: nx.Graph,
                   ils_iter:   int = 500,
                   seed:       int = 42,
                   verbose:   bool = False):
+    """
+    The main API function that links all the methods in the file.
+    """
   
     if len(G) == 0:
         return 0, {}
@@ -329,27 +359,21 @@ def gnn_coloring(G: nx.Graph,
 
     if verbose:
         print(f"  [GNN] Building features for {n} nodes …")
-    X = _initial_features(G, nodes)                       # (n, 8)
+    X = _initial_features(G, nodes)                       
 
-    A, A_hat = _normalised_adjacency(G, nodes)            # (n, n) each
+    A, A_hat = _normalised_adjacency(G, nodes)            
 
     actual_epochs = epochs
     if n > 500:   actual_epochs = max(20, epochs // 3)
     elif n > 200: actual_epochs = max(30, epochs // 2)
 
-    if verbose:
-        print(f"  [GNN] Training GCN ({X.shape[1]}→{hidden_dim}→{out_dim}) "
-              f"for {actual_epochs} epochs …")
-
     gcn = GCNNumpy(X.shape[1], hidden_dim, out_dim, seed=seed)
     gcn.train(A_hat, X, A, epochs=actual_epochs, lr=lr, margin=margin, verbose=verbose)
 
     Z, _ = gcn.forward(A_hat, X)
-    Z     = _normalise_rows(Z)                            # (n, out_dim)
+    Z     = _normalise_rows(Z)                           
 
-    if verbose:
-        print("  [GNN] Embedding-guided colour assignment + ILS …")
-
+    
     coloring = _assign_colors(G, nodes, Z)
     coloring = _ils_improve(G, coloring, Z, idx, max_iter=ils_iter)
 
