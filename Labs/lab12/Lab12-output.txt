@@ -1,0 +1,31 @@
+
+HCI Text Background Color Analysis
+-----------------------------------
+Dataset: /home/ana/Desktop/AEA/AEA-proiect/Labs/lab12/data/hci_text_background_color.csv
+
+Group summary:
+            n         mean  median    std_dev   min   max
+condition                                                
+cyan       18  1165.555556  1167.5  48.169092  1090  1255
+yellow     17  1314.411765  1315.0  67.843624  1190  1420
+
+Normality test (Shapiro-Wilk):
+           shapiro_wilk_stat  shapiro_pvalue  normal
+condition                                           
+cyan                0.971953        0.833513    True
+yellow              0.975907        0.910967    True
+
+Equal variances test (Levene):
+  Levene statistic = 1.6632, p-value = 0.2061
+
+Selected test:
+  Independent two-sample t-test
+  Statistic = -7.5187
+  p-value = 0.000000
+
+Conclusion: reject the null hypothesis at alpha=0.05. There is a significant difference in reaction 
+time between cyan and yellow backgrounds.
+
+The cyan background produced faster reaction times on average.
+
+Histogram saved to /home/ana/Desktop/AEA/AEA-proiect/Labs/lab12/data/hci_background_color_histogram.png
