@@ -1,0 +1,8 @@
+
+--- EXERCISE 2: NON-PARAMETRIC TESTS ---
+
+=== Friedman Test Result ===
+Friedman Statistic : 51.74
+p-value            : 3.3979e-11
+
+Conclusion: Reject H0. At least one metaheuristic performs significantly different from the others.

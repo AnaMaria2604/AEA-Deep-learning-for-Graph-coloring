@@ -1,0 +1,21 @@
+--- EXERCISE 1: PARAMETRIC TESTS ---
+
+=== One-Way ANOVA Result ===
+F-statistic : 101.91
+p-value     : 2.6259e-13
+
+=== Tukey HSD Post-Hoc Analysis ===
+  Multiple Comparison of Means - Tukey HSD, FWER=0.05  
+=======================================================
+group1  group2 meandiff p-adj   lower    upper   reject
+-------------------------------------------------------
+ Drug1   Drug2     37.4    0.0  30.7095  44.0905   True
+ Drug1 Placebo     10.7 0.0014   4.0095  17.3905   True
+ Drug2 Placebo    -26.7    0.0 -33.3905 -20.0095   True
+-------------------------------------------------------
+
+=== Scheffé Post-Hoc Analysis (p-value matrix) ===
+                Drug1         Drug2       Placebo
+Drug1    1.000000e+00  5.306217e-13  2.038993e-03
+Drug2    5.306217e-13  1.000000e+00  1.046178e-09
+Placebo  2.038993e-03  1.046178e-09  1.000000e+00
