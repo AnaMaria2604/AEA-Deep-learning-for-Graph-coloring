@@ -1,10 +1,18 @@
 --- EXERCISE 1: ANALYSIS WITH IMAGE DATA ---
 
-=== One-Way ANOVA Result ===
+=== Step 1: Normality Test (Shapiro-Wilk) ===
+Group 1 p-value: 0.2051
+Group 2 p-value: 0.2405
+Group 3 p-value: 0.2937
+
+=== Step 2: Homogeneity of Variance Test (Levene's) ===
+Levene's Test p-value: 0.4297
+
+=== Step 3: One-Way ANOVA Result ===
 F-statistic : 14.5889
 p-value     : 0.000051
 
-=== Tukey HSD Post-Hoc Analysis ===
+=== Step 4: Tukey HSD Post-Hoc Analysis ===
  Multiple Comparison of Means - Tukey HSD, FWER=0.05  
 ======================================================
  group1  group2 meandiff p-adj   lower   upper  reject
@@ -14,7 +22,7 @@ Group 1 Group 3     10.3    0.0  5.5183 15.0817   True
 Group 2 Group 3      3.8  0.139 -0.9817  8.5817  False
 ------------------------------------------------------
 
-=== Scheffé Post-Hoc Analysis (p-value matrix) ===
+=== Step 5: Scheffé Post-Hoc Analysis (p-value matrix) ===
           Group 1   Group 2   Group 3
 Group 1  1.000000  0.008731  0.000059
 Group 2  0.008731  1.000000  0.163040
