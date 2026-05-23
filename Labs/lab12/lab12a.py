@@ -17,4 +17,4 @@ for confidence in [0.90, 0.95, 0.99]:
     h = std_err * t.ppf((1 + confidence) / 2, n - 1)
     start = m - h
     end = m + h
-    print("confidence:", confidence, "start: ", start, " end: ", end)
+    print("confidence:", confidence, "start: ", start, " end: ", end)z
