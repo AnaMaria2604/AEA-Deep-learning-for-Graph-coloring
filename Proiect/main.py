@@ -297,15 +297,15 @@ def main():
         ("set3", [
             "anna", "david", "jean", "huck", "homer", "games120",
         ]),
-        # ("set4-medium", [
-        #     "flat300_28_0", "dsjc250.5", "le450_25c",
-        # ]),
-        # ("set5-miles", [
-        #     "miles250", "miles500", "miles750", "miles1000", "miles1500",
-        # ]),
-        # ("set6-large", [
-        #     "dsjc500.9", "dsjc1000.5",
-        # ]),
+        ("set4-medium", [
+            "flat300_28_0", "dsjc250.5", "le450_25c",
+        ]),
+        ("set5-miles", [
+            "miles250", "miles500", "miles750", "miles1000", "miles1500",
+        ]),
+        ("set6-large", [
+            "dsjc500.9", "dsjc1000.5",
+        ]),
     ]
 
     for cat_name, instances in categories:
