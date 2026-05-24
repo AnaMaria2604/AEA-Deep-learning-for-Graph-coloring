@@ -4,48 +4,56 @@ import scipy.stats as stats
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 import scikit_posthocs as sp
 
-print("--- EXERCISE 1: ANALYSIS WITH IMAGE DATA ---")
+group_1 = [3, 5, 3, 2, 4, 6, 9, 3, 8, 10] # 10 samples from Group 1
+group_2 = [10, 8, 15, 9, 11, 16, 17, 15, 7, 10] # 10 samples from Group 2
+group_3 = [29, 15, 14, 15, 17, 10, 8, 11, 18, 19] # 10 samples from Group 3
+groups = ['Group 1']*10 + ['Group 2']*10 + ['Group 3']*10  
+groups = [group_1, group_2, group_3]
+scores = group_1 + group_2 + group_3
 
-# 1. Extracted data points from your provided table image
-group_1 = [3, 5, 3, 2, 4, 6, 9, 3, 8, 10]
-group_2 = [10, 8, 15, 9, 11, 16, 17, 15, 7, 10]
-group_3 = [29, 15, 14, 15, 17, 10, 8, 11, 18, 19]
+print("=========================================================================\n")
+print("Initial Hypotheses:")
+print("  H0 (Null Hypothesis): μ1 = μ2 = μ3")
+print("  H1 (Alternative Hypothesis): At least one group mean is significantly different.")
+print("\n=========================================================================")
 
-# =====================================================================
-# ADDED: ASSUMPTION TESTING (Required by Newcastle University Guide)
-# =====================================================================
 print("\n=== Step 1: Normality Test (Shapiro-Wilk) ===")
-# The site requires checking if data is normally distributed
-print(f"Group 1 p-value: {stats.shapiro(group_1).pvalue:.4f}")
-print(f"Group 2 p-value: {stats.shapiro(group_2).pvalue:.4f}")
-print(f"Group 3 p-value: {stats.shapiro(group_3).pvalue:.4f}") 
-# Note: All p-values > 0.05, meaning normality assumption is met!
+for i, group in enumerate(groups, start=1):
+    print(f"Group {i} - P-value: {stats.shapiro(group).pvalue:.4f}, Mean: {np.mean(group):.2f}, Std Dev: {np.std(group, ddof=1):.2f}")
+
+if (stats.shapiro(group_1).pvalue > 0.05 and 
+    stats.shapiro(group_2).pvalue > 0.05 and 
+    stats.shapiro(group_3).pvalue > 0.05):
+    print("\n---> Conclusion: \n-----> All groups appear to be normally distributed(the p-values > 0.05) \n-----> Fail to reject H0")
 
 print("\n=== Step 2: Homogeneity of Variance Test (Levene's) ===")
-# The site requires testing if group variances are equal
 levene_stat, levene_p = stats.levene(group_1, group_2, group_3)
 print(f"Levene's Test p-value: {levene_p:.4f}")
-# Note: p-value > 0.05, meaning variance homogeneity assumption is met!
-# =====================================================================
-
-# 2. Perform One-Way ANOVA (Safe to proceed since assumptions passed)
-f_stat, p_val_anova = stats.f_oneway(group_1, group_2, group_3)
+if levene_p > 0.05:
+    print("\n---> Conclusion: \n-----> Variances are homogeneous (p-value > 0.05). \n-----> Fail to reject H0.")
 
 print("\n=== Step 3: One-Way ANOVA Result ===")
+f_stat, p_val_anova = stats.f_oneway(group_1, group_2, group_3)
 print(f"F-statistic : {f_stat:.4f}")
 print(f"p-value     : {p_val_anova:.6f}")
 
-# 3. Restructure data into a long-form DataFrame for post-hoc testing
-scores = group_1 + group_2 + group_3
-groups = ['Group 1']*10 + ['Group 2']*10 + ['Group 3']*10
+if p_val_anova < 0.05:
+    print("\n---> Conclusion: \n-----> Reject H0. \n-----> At least one group mean is significantly different from the others.")
+else:    
+    print("\n---> Conclusion: \n-----> Fail to reject H0. \n-----> No statistically significant differences between group means observed.")
+
+groups = ['Group 1']*10 + ['Group 2']*10 + ['Group 3']*10 
 df = pd.DataFrame({'score': scores, 'group': groups})
 
-# 4. Perform Tukey's HSD Test
-tukey_results = pairwise_tukeyhsd(endog=df['score'], groups=df['group'], alpha=0.05)
 print("\n=== Step 4: Tukey HSD Post-Hoc Analysis ===")
+tukey_results = pairwise_tukeyhsd(endog=df['score'], groups=df['group'], alpha=0.05)
 print(tukey_results)
 
-# 5. Perform Scheffé's Test
-scheffe_results = sp.posthoc_scheffe(df, val_col='score', group_col='group')
+if tukey_results.reject.any():
+    print("\n---> Conclusion: \n-----> Reject H0 for at least one pairwise comparison. \n-----> There are significant differences between some group means.")
+else:    
+    print("\n---> Conclusion: \n-----> Fail to reject H0 for all pairwise comparisons. \n-----> No significant differences between group means detected.")
+
 print("\n=== Step 5: Scheffé Post-Hoc Analysis (p-value matrix) ===")
+scheffe_results = sp.posthoc_scheffe(df, val_col='score', group_col='group')
 print(scheffe_results)

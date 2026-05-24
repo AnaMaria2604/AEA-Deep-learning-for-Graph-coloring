@@ -1,16 +1,34 @@
---- EXERCISE 1: ANALYSIS WITH IMAGE DATA ---
+=========================================================================
+
+Initial Hypotheses:
+  H0 (Null Hypothesis): μ1 = μ2 = μ3
+  H1 (Alternative Hypothesis): At least one group mean is significantly different.
+
+=========================================================================
 
 === Step 1: Normality Test (Shapiro-Wilk) ===
-Group 1 p-value: 0.2051
-Group 2 p-value: 0.2405
-Group 3 p-value: 0.2937
+Group 1 - P-value: 0.2051, Mean: 5.30, Std Dev: 2.83
+Group 2 - P-value: 0.2405, Mean: 11.80, Std Dev: 3.61
+Group 3 - P-value: 0.2937, Mean: 15.60, Std Dev: 5.89
+
+---> Conclusion: 
+-----> All groups appear to be normally distributed(the p-values > 0.05) 
+-----> Fail to reject H0
 
 === Step 2: Homogeneity of Variance Test (Levene's) ===
 Levene's Test p-value: 0.4297
 
+---> Conclusion: 
+-----> Variances are homogeneous (p-value > 0.05). 
+-----> Fail to reject H0.
+
 === Step 3: One-Way ANOVA Result ===
 F-statistic : 14.5889
 p-value     : 0.000051
+
+---> Conclusion: 
+-----> Reject H0. 
+-----> At least one group mean is significantly different from the others.
 
 === Step 4: Tukey HSD Post-Hoc Analysis ===
  Multiple Comparison of Means - Tukey HSD, FWER=0.05  
@@ -21,6 +39,10 @@ Group 1 Group 2      6.5 0.0062  1.7183 11.2817   True
 Group 1 Group 3     10.3    0.0  5.5183 15.0817   True
 Group 2 Group 3      3.8  0.139 -0.9817  8.5817  False
 ------------------------------------------------------
+
+---> Conclusion: 
+-----> Reject H0 for at least one pairwise comparison. 
+-----> There are significant differences between some group means.
 
 === Step 5: Scheffé Post-Hoc Analysis (p-value matrix) ===
           Group 1   Group 2   Group 3

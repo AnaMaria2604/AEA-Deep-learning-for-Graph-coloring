@@ -1,8 +1,53 @@
+=========================================================================
 
---- EXERCISE 2: NON-PARAMETRIC TESTS ---
+Initial Hypotheses:
+  H0 (Null Hypothesis): The performance distributions (median ranks) of all
+                        metaheuristics are equal across all problem instances.
+  H1 (Alternative Hypothesis): At least one metaheuristic performs significantly
+                              differently (different median rank) from the others.
 
-=== Friedman Test Result ===
-Friedman Statistic : 51.74
+=========================================================================
+
+=== Step 1: Descriptive Statistics & Mean Rankings ===
+Metaheuristic 1 - Median Score: 58.64, Mean Rank: 3.8571
+Metaheuristic 2 - Median Score: 46.60, Mean Rank: 2.5238
+Metaheuristic 3 - Median Score: 48.32, Mean Rank: 2.6190
+Metaheuristic 4 - Median Score: 35.38, Mean Rank: 1.0000
+
+=== Step 2: Friedman Test Result ===
+Friedman Statistic : 51.7429
 p-value            : 3.3979e-11
 
-Conclusion: Reject H0. At least one metaheuristic performs significantly different from the others.
+---> Conclusion: 
+-----> Reject H0. 
+-----> At least one metaheuristic performs significantly different from the others.
+
+=== Step 3: Post-Hoc Pairwise Analysis (Conover's Test Matrix) ===
+                 Metaheuristic 1  Metaheuristic 2  Metaheuristic 3  Metaheuristic 4
+Metaheuristic 1     1.000000e+00     8.623832e-10     7.563680e-09     2.873795e-23
+Metaheuristic 2     8.623832e-10     1.000000e+00     1.000000e+00     1.145350e-11
+Metaheuristic 3     7.563680e-09     1.000000e+00     1.000000e+00     1.356187e-12
+Metaheuristic 4     2.873795e-23     1.145350e-11     1.356187e-12     1.000000e+00
+
+=== Step 4: Pairwise Comparison Conclusions ===
+Metaheuristic 1 vs Metaheuristic 2:
+---> Reject H0(p-value: 8.6238e-10).
+
+Metaheuristic 1 vs Metaheuristic 3:
+---> Reject H0(p-value: 7.5637e-09).
+
+Metaheuristic 1 vs Metaheuristic 4:
+---> Reject H0(p-value: 2.8738e-23).
+
+Metaheuristic 2 vs Metaheuristic 3:
+---> Fail to reject H0(p-value: 1.0000e+00).
+
+Metaheuristic 2 vs Metaheuristic 4:
+---> Reject H0(p-value: 1.1453e-11).
+
+Metaheuristic 3 vs Metaheuristic 4:
+---> Reject H0(p-value: 1.3562e-12).
+
+
+=== Step 5: Pairs of metaheuristics that did NOT show significant performance differences ===
+  - Metaheuristic 2 vs Metaheuristic 3 (p-value: 1.0000e+00)
