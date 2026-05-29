@@ -49,3 +49,10 @@ Group 2 Group 3      3.8  0.139 -0.9817  8.5817  False
 Group 1  1.000000  0.008731  0.000059
 Group 2  0.008731  1.000000  0.163040
 Group 3  0.000059  0.163040  1.000000
+
+
+Normality and Homogeneity of variances test indicates that the data 
+satisfied the assumptions for ANOVA test. (the normality + variance of the data)
+
+ANOVA test shows that there was significant difference amongst the 3 groups.
+Post-hoc test further pin-point exactly where the differences was located;
